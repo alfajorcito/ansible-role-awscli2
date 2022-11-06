@@ -1,23 +1,44 @@
 ---
 
 # https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-- name: Download awscliv2 installer.
+- name: Download latest awscli v2 zip archive
   unarchive:
     src: "https://awscli.amazonaws.com/awscli-exe-linux-{{ ansible_architecture }}.zip"
-    dest: "{{ executable_temp_dir }}"
+    dest: "{{ awscli2__executable_temp_dir }}"
     remote_src: true
-    creates: '{{ executable_temp_dir }}/aws'
+    creates: '{{ awscli2__executable_temp_dir }}/aws'
     mode: 0755
+  when: awscli2__version == "latest"
 
-- name: Run the installer.
+- name: Download specified awscli v2 version zip archive
+  unarchive:
+    src: "https://awscli.amazonaws.com/awscli-exe-linux-{{ ansible_architecture }}-{{ awscli2__version}}.zip"
+    dest: "{{ awscli2__executable_temp_dir }}"
+    remote_src: true
+    creates: '{{ awscli2__executable_temp_dir }}/aws'
+    mode: 0755
+  when: awscli2__version != "latest"
+
+- name: Install awscli v2
   command:
   args:
-    cmd: "{{ executable_temp_dir }}/aws/install"
-    creates: /usr/local/bin/aws
+    cmd: "{{ awscli2__executable_temp_dir }}/aws/install"
+    creates: "{{ awscli2__bin_dir }}/aws"
   become: true
   register: aws_install
+  when: awscli2__upgrade is false
+
+- name: Update awscli v2
+  command: "{{ awscli2__executable_temp_dir }}/aws/install --bin-dir {{ awscli2__bin_dir }} --install-dir {{ awscli2__install_dir }} --update"
+  become: true
+  when: ( awscli2__upgrade | bool ) and awscli2__bin_dir is defined and awscli2__install_dir is defined
 
 - name: "Show installer output."
   debug:
     var: aws_install
     verbosity: 2
+
+- name: Delete executable temp dir contents
+  file:
+    path: "{{ awscli2__executable_temp_dir }}/aws"
+    state: absent
